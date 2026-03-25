@@ -1,123 +1,145 @@
 import { supabase } from "./supabase";
 import type { Transactions } from "../types";
+import { keysToCamel, keysToSnake } from "../utils/caseConverter"; 
 
 export const borrowServices = {
     // === The Checkout Logic ===
     async checkoutItem(componentId: string, userId: string, quantity: number = 1): Promise<Transactions> {
-        // Fetching the component to be operated on
-        const { data: item, error: fetchError} = await supabase
+        
+        // 1. Fetching the component
+        const { data: rawItem, error: fetchError} = await supabase 
             .from('components')
-            .select('avaliblie_quantity')
+            .select('available_quantity') 
             .eq('id', componentId)
             .single();
-        if(fetchError) {
-            throw new Error("Unable to fetch the component. Network error possible culprit. Try again.");
-        }
-        if( !item ) {
-            throw new Error("Unable to fetch the component. Item id has no hit's in the database. Try again.");
-        }
-        if(item.avaliblie_quantity < quantity) {
-            throw new Error(`Impossible to process request. Only ${item.avaliblie_quantity} components left in stock.`);
+            
+        if(fetchError || !rawItem) {
+            throw new Error("Unable to fetch the component. Try again.");
         }
 
-        // Logging the new transaction
-        const { data: transactionData, error: borrowError } = await supabase
+        // Translate incoming DB data
+        const item = keysToCamel(rawItem); 
+
+        if(item.availableQuantity < quantity) { 
+            throw new Error(`Only ${item.availableQuantity} components left.`);
+        }
+
+        // 2. Logging the new transaction
+        const newTransaction = {
+            componentId: componentId,
+            userId: userId,
+            quantity: quantity,
+            status: 'active',
+            borrowedAt: new Date().toISOString()
+        };
+
+        const { data: rawTxData, error: borrowError } = await supabase
             .from('borrows')
-            .insert({
-                componentId: componentId,
-                userId: userId,
-                quantity: quantity,
-                status: 'active',
-                borrowedAt: new Date().toISOString()
-            })
+            .insert(keysToSnake(newTransaction)) 
             .select()
             .single();
+            
         if(borrowError) {
             throw new Error('Failed to update the transaction log');
         }
 
-        // Updating the components left 
-        const {error: updateError} = await supabase
-            .from('components')
-            .update({avalibleQuantity: item.avaliblie_quantity - quantity})
-            .eq('id', componentId);
-        if(updateError) {
-            await supabase
-                .from('borrows')
-                .delete()
-                .eq('id', transactionData.id);
+        // 3. Updating physical inventory
+        const stockUpdate = { availableQuantity: item.availableQuantity - quantity }; 
 
-            throw new Error('Checkout failed due to network error. Loag cancelled. Transaction rolled back.')
+        const { error: updateError } = await supabase
+            .from('components')
+            .update(keysToSnake(stockUpdate))
+            .eq('id', componentId);
+            
+        if(updateError) {
+            await supabase.from('borrows').delete().eq('id', rawTxData.id);
+            throw new Error('Checkout failed. Transaction rolled back.');
         }
 
-        return transactionData as Transactions;
+        // Translate the final output for the UI
+        return keysToCamel(rawTxData) as Transactions; 
     },
 
     // === The Return Logic ===
     async returnItem(componentId: string, userId: string, returnQuantity: number = 1): Promise<void> {
-        // Accounting for the user's current debt
-        const { data: activeBorrows, error: fetchError } = await supabase
+        
+        // 1. Accounting for the user's current debt
+        const { data: rawBorrows, error: fetchError } = await supabase // [MODIFIED] Rename to rawBorrows
             .from('borrows')
             .select('*')
-            .eq('componentId', componentId)
-            .eq('userId', userId)
+            .eq('component_id', componentId) // DB column names stay snake_case in queries
+            .eq('user_id', userId)
             .eq('status', 'active')
-            .order('borrowedAt', {ascending: true})
-        if(fetchError){
-            throw new Error('Failed to check active borrows.');
-        }
-        if(!activeBorrows || activeBorrows.length == 0) {
-            throw new Error('You do not have any active borrows on this item.')
+            .order('borrowed_at', { ascending: true });
+            
+        if(fetchError || !rawBorrows || rawBorrows.length === 0){
+            throw new Error('You do not have any active borrows on this item.');
         }
 
-        // Cross-checking the amount being returned
-        const totalBorrowed = activeBorrows.reduce((sum, record) => sum + record.quantity, 0);
+        // [NEW] Translate the entire array of borrows
+        const activeBorrows = keysToCamel(rawBorrows); 
+
+        const totalBorrowed = activeBorrows.reduce((sum: number, record: any) => sum + record.quantity, 0);
         if(returnQuantity > totalBorrowed) {
-            throw new Error(`Your are returning ${returnQuantity} components, but you have borrowed only ${totalBorrowed}`);
+            throw new Error(`You are returning ${returnQuantity}, but only borrowed ${totalBorrowed}`);
         }
 
-        // Aquiring avalible quantity 
-        const { data: item } = await supabase
+        // 2. Acquiring available quantity 
+        const { data: rawItem, error: stockFetchError } = await supabase // [MODIFIED] Rename
             .from('components')
-            .select('avalibleQuantity')
+            .select('available_quantity')
             .eq('id', componentId)
-            .single()
+            .single();
+            
+        if(stockFetchError || !rawItem) {
+            throw new Error('Failed to verify current physical inventory.');
+        }
+
+        const item = keysToCamel(rawItem); // Translate incoming data
+
+        const stockUpdate = { availableQuantity: item.availableQuantity + returnQuantity }; 
 
         const { error: stockError } = await supabase
             .from('components')
-            .update({avalibleQuantity: (item?.avalibleQuantity || 0) + returnQuantity})
+            .update(keysToSnake(stockUpdate)) // Translate update payload
             .eq('id', componentId);
+            
         if(stockError) {
-            throw new Error('Failed to return items to the physical invetory.');
+            throw new Error('Failed to return items to the physical inventory.');
         }
         
-        // Setting the returned date
+        // 3. Setting the returned date
         let remainingToReturn = returnQuantity;
-        for(const record of activeBorrows) {
-            if(remainingToReturn <= 0) {
-                break;
-            }
+        
+        for(const record of activeBorrows) { // activeBorrows is already camelCase here
+            if(remainingToReturn <= 0) break;
 
             if(record.quantity <= remainingToReturn) {
+                // Fully return this record
+                const returnPayload = {
+                    status: 'returned',
+                    returnedAt: new Date().toISOString()
+                };
+
                 await supabase 
                     .from('borrows')
-                    .update({
-                        status: 'returned',
-                        returnedAt: new Date().toISOString()
-                    })
+                    .update(keysToSnake(returnPayload)) 
                     .eq('id', record.id);
                 
                 remainingToReturn -= record.quantity;
             } else {
+                // Partial return
+                const partialPayload = { 
+                    quantity: record.quantity - remainingToReturn
+                };
+
                 await supabase
-                    .from('burrows')
-                    .update({
-                        quantity: record.quantity - remainingToReturn
-                    })
+                    .from('borrows') 
+                    .update(keysToSnake(partialPayload)) // Translate update payload
                     .eq('id', record.id);
 
                 remainingToReturn = 0;
             }
         }
     }
-}
+};
