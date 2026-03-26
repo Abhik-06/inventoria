@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { inventoryService } from "../../../services/inventoryService";
 import { borrowServices } from "../../../services/borrowService";
+import ItemCard from "../components/ItemCard";
 
 export default function InventoryPage() {
     const [items, setItems] = useState<any[]>([]);
@@ -40,14 +41,7 @@ export default function InventoryPage() {
             <h1>Inventory Page</h1>
 
             {items.map((item) => (
-                <div key={item.id}>
-                    <p>{item.name}</p>
-                    <p>{item.availableQuantity}</p>
-
-                    <button onClick={() => handleBorrow(item.id)}>
-                        Borrow
-                    </button>
-                </div>
+                <ItemCard key={item.id} item={item} onBorrow={handleBorrow} />
             ))}
         </div>
     );
