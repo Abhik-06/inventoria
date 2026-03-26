@@ -4,12 +4,14 @@ import { borrowServices } from "../../../services/borrowService";
 
 export default function InventoryPage() {
     const [items, setItems] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         loadItems();
     }, []);
 
     async function loadItems() {
+        setLoading(true)
         try {
             const data = await inventoryService.getAllComponents();
             console.log("items:", data);
@@ -17,6 +19,7 @@ export default function InventoryPage() {
         } catch (err) {
             console.error("failed loading", err);
         }
+        setLoading(false)
     }
 
     async function handleBorrow(id: string) {
@@ -26,6 +29,10 @@ export default function InventoryPage() {
         } catch (err) {
             console.error("borrow failed", err);
         }
+    }
+
+    if (loading) {
+        return <p>Loading...</p>
     }
 
     return (
