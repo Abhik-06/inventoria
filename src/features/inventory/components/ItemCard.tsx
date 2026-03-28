@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 type Props = {
     item: any;
     onBorrow: (id: string) => void;
+    loading: boolean;
 }
 
-export default function ItemCard({item, onBorrow}: Props) {
+export default function ItemCard({item, onBorrow, loading}: Props) {
     return (
         <Card className="relative mx-auto w-full max-w-sm pt-0">
             <div className="absolute inset-0 z-30 aspect-video bg-black/35" />
@@ -24,10 +26,17 @@ export default function ItemCard({item, onBorrow}: Props) {
             <CardFooter>
                 <Button     
                     onClick={() => onBorrow(item.id)}
-                    disabled={item.available_quantity === 0}
+                    disabled={loading || item.available_quantity === 0}
                     className="w-full h-10 text-lg"
                 >
-                    Borrow
+                    { loading ? (
+                        <>
+                            <Spinner data-icon="inline-start" />
+                            Borrowing
+                        </>
+                    ) : (
+                        "Borrow"
+                    )}
                 </Button>
             </CardFooter>
             

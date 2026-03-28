@@ -5,6 +5,7 @@ import ItemCard from "../components/ItemCard";
 
 export default function InventoryPage() {
     const [items, setItems] = useState<any[]>([]);
+    const [borrowingID, setBorrowingID] = useState<string | null>(null);
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -25,6 +26,8 @@ export default function InventoryPage() {
 
     async function handleBorrow(id: string) {
         try {
+            setBorrowingID(id);
+
             await borrowServices.checkoutItem(id, "d0f05595-daed-492f-8cad-301938ac8c09", 1);
 
             setItems( prev =>
@@ -39,6 +42,8 @@ export default function InventoryPage() {
             );
         } catch (err) {
             console.error("Borrow failed", err);
+        } finally {
+            setBorrowingID(null);
         }
     }
 
@@ -51,7 +56,7 @@ export default function InventoryPage() {
             <h1>Inventory Page</h1>
 
             {items.map((item) => (
-                <ItemCard key={item.id} item={item} onBorrow={handleBorrow} />
+                <ItemCard key={item.id} item={item} onBorrow={handleBorrow} loading={borrowingID === item.id} />
             ))}
         </div>
     );
