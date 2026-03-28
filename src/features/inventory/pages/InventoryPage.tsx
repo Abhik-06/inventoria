@@ -26,9 +26,19 @@ export default function InventoryPage() {
     async function handleBorrow(id: string) {
         try {
             await borrowServices.checkoutItem(id, "d0f05595-daed-492f-8cad-301938ac8c09", 1);
-            await loadItems();
+
+            setItems( prev =>
+                prev.map( item => 
+                    item.id === id
+                    ? {
+                        ...item,
+                        available_quantity: item.available_quantity - 1
+                    }
+                    : item
+                )
+            );
         } catch (err) {
-            console.error("borrow failed", err);
+            console.error("Borrow failed", err);
         }
     }
 
