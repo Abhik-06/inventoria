@@ -1,0 +1,21 @@
+Abhik-06 (5):
+      Added Contracts
+      service layer ready
+      Merge pull request #1 from Abhik-06/feat/logic-service
+      Bug fixes, implemented the caseConverter
+      Merge branch 'main' of https://github.com/aditeya24/inventoria into bug-fixes
+
+Aditeya J Frankur (1):
+      Add MIT License to the project
+
+aditeya24 (9):
+      Initial commit
+      Initialised vite with React+Typescript
+      Added .gitignore
+      Added example .env and installed supabase
+      Removed default assets folder and css file
+      Initialize project folder structure
+      Modified .env.example
+      Added supabase connection and basic page to display items
+      Merge branch 'main' of https://github.com/aditeya24/inventoria
+

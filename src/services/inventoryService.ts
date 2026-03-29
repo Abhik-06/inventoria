@@ -1,7 +1,10 @@
 import { supabase } from "./supabase";
 import type { ComponentItem } from '../types';
 
+// Retrieve the component data
 export const inventoryService = {
+
+    //Retrieve entire component data
     async getAllComponents(): Promise<ComponentItem[]> {
         const {data, error} = await supabase
             .from('components')
@@ -16,6 +19,7 @@ export const inventoryService = {
         return ( data || [] ) as ComponentItem[];
     },
 
+    // Retrieve individual component data, by id
     async getComponentById(id: string): Promise<ComponentItem | null> {
         const {data, error} = await supabase
             .from('components')

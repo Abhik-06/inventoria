@@ -64,10 +64,10 @@ export const borrowServices = {
     async returnItem(componentId: string, userId: string, returnQuantity: number = 1): Promise<void> {
         
         // 1. Accounting for the user's current debt
-        const { data: rawBorrows, error: fetchError } = await supabase // [MODIFIED] Rename to rawBorrows
+        const { data: rawBorrows, error: fetchError } = await supabase 
             .from('borrows')
             .select('*')
-            .eq('component_id', componentId) // DB column names stay snake_case in queries
+            .eq('component_id', componentId) 
             .eq('user_id', userId)
             .eq('status', 'active')
             .order('borrowed_at', { ascending: true });
@@ -76,7 +76,7 @@ export const borrowServices = {
             throw new Error('You do not have any active borrows on this item.');
         }
 
-        // [NEW] Translate the entire array of borrows
+        // Translate the entire array of borrows
         const activeBorrows = keysToCamel(rawBorrows); 
 
         const totalBorrowed = activeBorrows.reduce((sum: number, record: any) => sum + record.quantity, 0);
@@ -85,7 +85,7 @@ export const borrowServices = {
         }
 
         // 2. Acquiring available quantity 
-        const { data: rawItem, error: stockFetchError } = await supabase // [MODIFIED] Rename
+        const { data: rawItem, error: stockFetchError } = await supabase 
             .from('components')
             .select('available_quantity')
             .eq('id', componentId)
