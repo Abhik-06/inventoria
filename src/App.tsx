@@ -9,8 +9,9 @@ import { InventoryPage } from "./features/inventory/pages/InventoryPage";
 
 // Import necessary UI components
 import { Spinner } from "./components/ui/spinner";
+import ItemDetailsPage from "./features/items/pages/ItemDetailsPage";
 
-function ProtectedRoute({children}: {children: React.ReactNode}) {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<any>(null);
   const [isChecking, setIsChecking] = useState(true);
 
@@ -25,7 +26,7 @@ function ProtectedRoute({children}: {children: React.ReactNode}) {
     checkInitialLogin();
 
     // To create a new session, in case user logs out
-    const listener = supabase.auth.onAuthStateChange((event, newSession) => {
+    const listener = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
 
@@ -36,38 +37,43 @@ function ProtectedRoute({children}: {children: React.ReactNode}) {
   }, []);
 
   // Check 1, If ischecking is ON, the loading speinner is triggered
-  if(isChecking) {
+  if (isChecking) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-muted/50">
-        <Spinner className="h-8 w-8"/>
+        <Spinner className="h-8 w-8" />
       </div>
     )
   }
 
   // Check 2, if the user is not logged in, the user is teleported to login screen, the backdoor is shut
-  if(!session) {
-    return <Navigate to="/login" replace/>;
+  if (!session) {
+    return <Navigate to="/login" replace />;
   }
 
-  return<>{children}</>;
+  return <>{children}</>;
   // Upon reaching this point, the user is authenticated
 }
 
-export default function App () {
-  return(
+export default function App() {
+  return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage/>}/>
+        <Route path="/login" element={<LoginPage />} />
 
         <Route
           path="/"
           element={
             <ProtectedRoute>
-              <InventoryPage/>
+              <InventoryPage />
             </ProtectedRoute>
           }
         />
-          
+
+        <Route
+          path="/:id"
+          element={<ItemDetailsPage />}
+        />
+
       </Routes>
     </BrowserRouter>
   );

@@ -3,6 +3,7 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/comp
 import { Spinner } from "@/components/ui/spinner";
 import { useState, useEffect } from "react";
 import QuantitySelector from "@/components/QuantitySelector";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
     item: any;
@@ -12,6 +13,7 @@ type Props = {
 
 export default function ItemCard({item, onBorrow, loading}: Props) {
     const [quantity, setQuantity] = useState(1);
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (quantity > item.available_quantity) {
@@ -21,14 +23,19 @@ export default function ItemCard({item, onBorrow, loading}: Props) {
 
     return (
         <Card className="relative w-full pt-0">
-            <div className="absolute inset-0 z-30 aspect-video bg-black/35" />
+            <div onClick={() => navigate(`${item.id}`)} className="absolute inset-0 z-30 aspect-video bg-black/35 cursor-pointer" />
             <img
-                src="https://avatar.vercel.sh/shadcn1"
-                alt="Event cover"
+                src={ item.image_url || "https://avatar.vercel.sh/shadcn1" }
+                alt={ item.name}
                 className="relative z-20 aspect-video w-full object-cover brightness-60 grayscale dark:brightness-40"
             />   
             <CardHeader>
-                <CardTitle className="text-lg">{item.name}</CardTitle>
+                <CardTitle 
+                    onClick={() => navigate(`${item.id}`)} 
+                    className="text-lg cursor-pointer hover:underline"
+                >
+                    {item.name}
+                </CardTitle>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                     <CardDescription className="text-lg whitespace-nowrap">
                         {item.available_quantity} / {item.total_quantity}
@@ -52,6 +59,8 @@ export default function ItemCard({item, onBorrow, loading}: Props) {
                             <Spinner data-icon="inline-start" />
                             Borrowing
                         </>
+                    ) : item.available_quantity === 0 ? (
+                        "Out of stock"
                     ) : (
                         "Borrow"
                     )}
